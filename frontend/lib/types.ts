@@ -3,6 +3,8 @@ export type Status = "open" | "approved" | "dismissed";
 export type UserRole = "admin" | "reviewer";
 export type User = { id: number; name: string; email: string; role: UserRole };
 export type AuthResponse = { access_token: string; token_type: "bearer"; user: User };
+export type AIReview = { id: number; case_id: number; provider: string; model: string; confidence: string; policy_citation: string; fallback_reason: string | null; created_at: string };
+export type ReviewRunResult = { status: string; cases_reviewed: number; provider: string; model: string; fallback_count: number };
 
 export type CaseItem = {
   id: number; payroll_run_id: number; worker_id: string; worker_name: string; country: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { FileSpreadsheet, RefreshCw, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, LoaderCircle, RefreshCw, Upload } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { API, authHeaders, getJson } from "@/lib/api";
 import { CaseItem, PayrollRun } from "@/lib/types";
@@ -32,7 +32,8 @@ export default function RunsPage() {
   }
 
   return <section className="content page-content">
-    <div className="page-actions"><div><strong>Payroll ingestion</strong><span>{user?.role === "admin" ? "Upload a synthetic CSV to run deterministic controls and AI classification." : "Run imports are restricted to operations administrators."}</span></div><input ref={input} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={upload} />{user?.role === "admin" && <button className="primary" disabled={busy} onClick={() => input.current?.click()}><Upload size={17} />Import payroll CSV</button>}</div>
+    <div className="page-actions"><div><strong>Payroll ingestion</strong><span>{user?.role === "admin" ? "Apply deterministic controls, retrieve policy evidence, and generate structured Gemini analysis." : "Run imports are restricted to operations administrators."}</span></div><input ref={input} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={upload} /><div className="page-action-buttons"><a className="secondary" href="/sample-payroll.csv" download><Download size={17} />Sample CSV</a>{user?.role === "admin" && <button className="primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? <LoaderCircle className="spinning" size={17} /> : <Upload size={17} />}{busy ? "Analyzing payroll..." : "Import payroll CSV"}</button>}</div></div>
+    {busy && <div className="processing-banner"><LoaderCircle className="spinning" size={18} /><div><strong>Running payroll controls</strong><span>Retrieving policy evidence and generating schema-validated Gemini analyses.</span></div></div>}
     {message && <div className="info-banner">{message}</div>}
     <div className="runs-layout">
       <section className="panel runs-list"><div className="panel-heading"><div><h2>Run history</h2><p>{runs.length} processed batches</p></div><button className="icon-button" title="Refresh runs" onClick={() => void loadRuns()}><RefreshCw size={17} /></button></div>{runs.map((run) => <button className={`run-row ${selected?.id === run.id ? "selected" : ""}`} onClick={() => void inspect(run)} key={run.id}><span className="run-file"><FileSpreadsheet size={18} /></span><span><strong>{run.name}</strong><small>{run.period} · {run.worker_count} workers</small></span><b>{currency.format(Number(run.gross_total))}</b></button>)}</section>

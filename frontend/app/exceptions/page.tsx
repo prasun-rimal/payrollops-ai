@@ -1,12 +1,12 @@
 "use client";
 
-import { CircleAlert, Filter, MoreHorizontal, RefreshCw, Search } from "lucide-react";
+import { CircleAlert, Filter, LoaderCircle, MoreHorizontal, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { SeverityBadge, StatusBadge } from "@/components/Badges";
 import CaseDrawer from "@/components/CaseDrawer";
 import { getJson, sendJson } from "@/lib/api";
-import { CaseItem, Severity, Status } from "@/lib/types";
+import { CaseItem, ReviewRunResult, Severity, Status } from "@/lib/types";
 
 const severities: Severity[] = ["critical", "high", "medium", "low"];
 
@@ -18,7 +18,9 @@ function ExceptionQueue() {
   const [status, setStatus] = useState<Status | "all">("all");
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -39,14 +41,30 @@ function ExceptionQueue() {
   async function resolve(nextStatus: Status) {
     if (!selected) return;
     setBusy(true);
-    try { await sendJson(`/api/cases/${selected.id}`, "PATCH", { status: nextStatus }); setSelected(null); await load(); }
+    try { await sendJson(`/api/cases/${selected.id}`, "PATCH", { status: nextStatus }); setNotice(`Case ${nextStatus === "approved" ? "approved" : "dismissed"} and added to the audit trail.`); setSelected(null); await load(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Update failed"); }
     finally { setBusy(false); }
   }
 
+  async function runAIReview() {
+    setReviewing(true); setError(""); setNotice(""); setSelected(null);
+    try {
+      const result = await sendJson<ReviewRunResult>("/api/review", "POST");
+      const fallback = result.fallback_count
+        ? ` ${result.fallback_count} used deterministic fallback.`
+        : result.provider === "gemini"
+          ? " All reviews used Gemini successfully."
+          : " Deterministic demo review complete.";
+      setNotice(`Reviewed ${result.cases_reviewed} open cases with ${result.model}.${fallback}`);
+      await load();
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "AI review failed"); }
+    finally { setReviewing(false); }
+  }
+
   return <section className="content page-content">
     {error && <div className="error-banner"><CircleAlert size={18} />{error}</div>}
-    <div className="page-actions"><div><strong>{cases.filter((item) => item.status === "open").length} open findings</strong><span>Every resolution is recorded in the audit trail.</span></div><button className="secondary" onClick={() => void load()}><RefreshCw size={16} />Refresh</button></div>
+    {notice && <div className="info-banner success"><Sparkles size={17} />{notice}<button onClick={() => setNotice("")} title="Dismiss notification"><X size={15} /></button></div>}
+    <div className="page-actions"><div><strong>{cases.filter((item) => item.status === "open").length} open findings</strong><span>Run Gemini against current policy evidence, then make the final human decision.</span></div><div className="page-action-buttons"><button className="secondary" disabled={reviewing} onClick={() => void load()}><RefreshCw size={16} />Refresh</button><button className="primary" disabled={reviewing || !cases.some((item) => item.status === "open")} onClick={() => void runAIReview()}>{reviewing ? <LoaderCircle className="spinning" size={16} /> : <Sparkles size={16} />}{reviewing ? "Reviewing cases..." : "Run Gemini review"}</button></div></div>
     <section className="panel queue full-queue">
       <div className="table-tools"><label className="search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search workers or exceptions" /></label><label className="select-control"><Filter size={15} /><select value={severity} onChange={(event) => setSeverity(event.target.value as Severity | "all")}><option value="all">All severities</option>{severities.map((item) => <option value={item} key={item}>{item}</option>)}</select></label><label className="select-control"><select value={status} onChange={(event) => setStatus(event.target.value as Status | "all")}><option value="all">All statuses</option><option value="open">Open</option><option value="approved">Approved</option><option value="dismissed">Dismissed</option></select></label></div>
       <div className="table-wrap"><table><thead><tr><th>Exception</th><th>Worker</th><th>Assigned team</th><th>Severity</th><th>Confidence</th><th>Status</th><th /></tr></thead><tbody>{visible.map((item) => <tr key={item.id} onClick={() => setSelected(item)}><td><strong>{item.title}</strong><span>{item.rule_code.replaceAll("_", " ")}</span></td><td><strong>{item.worker_name}</strong><span>{item.worker_id} · {item.country}</span></td><td>{item.assigned_to}</td><td><SeverityBadge severity={item.severity} /></td><td>{Math.round(Number(item.confidence) * 100)}%</td><td><StatusBadge status={item.status} /></td><td><button className="icon-button compact" title="Open case"><MoreHorizontal size={17} /></button></td></tr>)}</tbody></table></div>

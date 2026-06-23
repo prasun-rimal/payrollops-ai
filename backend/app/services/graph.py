@@ -12,6 +12,9 @@ class ExceptionWorkflowState(TypedDict, total=False):
     finding: dict
     policy_context: str
     analysis: ExceptionAnalysis
+    analysis_provider: str
+    analysis_model: str
+    fallback_reason: str | None
 
 
 def build_exception_workflow(db: Session):
@@ -31,7 +34,13 @@ def build_exception_workflow(db: Session):
         return {"policy_context": context}
 
     def classify(state: ExceptionWorkflowState) -> ExceptionWorkflowState:
-        return {"analysis": analyzer.analyze(state["finding"], state["policy_context"])}
+        analysis = analyzer.analyze(state["finding"], state["policy_context"])
+        return {
+            "analysis": analysis,
+            "analysis_provider": analyzer.provider,
+            "analysis_model": analyzer.model,
+            "fallback_reason": analyzer.fallback_reason,
+        }
 
     graph = StateGraph(ExceptionWorkflowState)
     graph.add_node("retrieve_policy", retrieve)
@@ -40,4 +49,3 @@ def build_exception_workflow(db: Session):
     graph.add_edge("retrieve_policy", "classify_exception")
     graph.add_edge("classify_exception", END)
     return graph.compile()
-

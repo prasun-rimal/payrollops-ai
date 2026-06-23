@@ -1,15 +1,4 @@
-import os
-from pathlib import Path
-
 from fastapi.testclient import TestClient
-
-
-test_database = Path("/tmp/payrollops-api-tests.db")
-test_database.unlink(missing_ok=True)
-os.environ["DATABASE_URL"] = f"sqlite:///{test_database}"
-os.environ["AI_PROVIDER"] = "mock"
-os.environ["GEMINI_API_KEY"] = ""
-os.environ["OPENAI_API_KEY"] = ""
 
 from app.main import app
 
@@ -45,6 +34,11 @@ def test_dashboard_and_case_workflow():
         review = client.post("/api/review", headers=headers)
         assert review.status_code == 200
         assert review.json()["status"] == "completed"
+        assert review.json()["provider"] == "mock"
+
+        provenance = client.get(f"/api/cases/{first_case['id']}/reviews", headers=headers)
+        assert provenance.status_code == 200
+        assert provenance.json()[0]["model"] == "deterministic-demo"
 
         policies = client.get("/api/policies", headers=headers)
         assert policies.status_code == 200

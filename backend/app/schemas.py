@@ -60,6 +60,27 @@ class CaseUpdate(BaseModel):
     status: CaseStatus
 
 
+class AIReviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    case_id: int
+    provider: str
+    model: str
+    confidence: Decimal
+    policy_citation: str
+    fallback_reason: str | None
+    created_at: datetime
+
+
+class ReviewRunOut(BaseModel):
+    status: str
+    cases_reviewed: int
+    provider: str
+    model: str
+    fallback_count: int
+
+
 class PayrollRunOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

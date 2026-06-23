@@ -10,11 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine, get_db
-from app.models import AuditEvent, CaseStatus, ExceptionCase, PayrollRun, PolicyChunk, Severity, User, UserRole
-from app.schemas import AuthResponse, AuditEventOut, CaseOut, CaseUpdate, DashboardSummary, LoginRequest, PayrollRunOut, PolicyCreate, PolicyOut, UserOut
+from app.models import AIReview, AuditEvent, CaseStatus, ExceptionCase, PayrollRun, PolicyChunk, Severity, User, UserRole
+from app.schemas import AIReviewOut, AuthResponse, AuditEventOut, CaseOut, CaseUpdate, DashboardSummary, LoginRequest, PayrollRunOut, PolicyCreate, PolicyOut, ReviewRunOut, UserOut
 from app.security import authenticate_user, create_access_token, get_current_user, require_roles
 from app.seed import seed_demo
 from app.services.embeddings import embed_text
+from app.services.graph import build_exception_workflow
 from app.services.workflow import create_payroll_run
 
 
@@ -123,15 +124,69 @@ async def upload_run(
         raise HTTPException(status_code=422, detail=f"Invalid payroll value: {exc}") from exc
 
 
-@app.post("/api/review")
+@app.post("/api/review", response_model=ReviewRunOut)
 def run_review(
     current_user: User = Depends(require_roles(UserRole.admin, UserRole.reviewer)),
     db: Session = Depends(get_db),
-) -> dict[str, int | str]:
-    open_count = db.scalar(select(func.count()).select_from(ExceptionCase).where(ExceptionCase.status == CaseStatus.open)) or 0
-    db.add(AuditEvent(event_type="ai_review_completed", actor=current_user.name, detail=f"Revalidated {open_count} open cases using structured exception schemas."))
+) -> ReviewRunOut:
+    open_cases = list(db.scalars(
+        select(ExceptionCase)
+        .where(ExceptionCase.status == CaseStatus.open)
+        .order_by(ExceptionCase.created_at)
+    ).all())
+    workflow = build_exception_workflow(db)
+    fallback_count = 0
+    provider = settings.ai_provider
+    model = settings.gemini_model if provider == "gemini" else settings.openai_model if provider == "openai" else "deterministic-demo"
+    for case in open_cases:
+        result = workflow.invoke({"finding": {
+            "severity": case.severity.value,
+            "rule_code": case.rule_code,
+            "title": case.title,
+            "worker_id": case.worker_id,
+            "worker_name": case.worker_name,
+            "country": case.country,
+            "amount": str(case.amount),
+            "explanation": case.explanation,
+            "recommendation": case.recommendation,
+        }})
+        analysis = result["analysis"]
+        provider = result["analysis_provider"]
+        model = result["analysis_model"]
+        case.severity = analysis.severity
+        case.explanation = analysis.explanation
+        case.recommendation = analysis.recommendation
+        case.policy_citation = analysis.policy_citation
+        case.confidence = Decimal(str(analysis.confidence))
+        if result.get("fallback_reason"):
+            fallback_count += 1
+        db.add(AIReview(
+            case_id=case.id,
+            provider=result["analysis_provider"],
+            model=result["analysis_model"],
+            confidence=case.confidence,
+            policy_citation=case.policy_citation,
+            fallback_reason=result.get("fallback_reason"),
+        ))
+        db.add(AuditEvent(
+            case_id=case.id,
+            event_type="ai_case_reviewed",
+            actor=current_user.name,
+            detail=f"Reanalyzed with {result['analysis_provider']} using {result['analysis_model']}.",
+        ))
+    db.add(AuditEvent(
+        event_type="ai_review_completed",
+        actor=current_user.name,
+        detail=f"Revalidated {len(open_cases)} open cases; {fallback_count} used deterministic fallback.",
+    ))
     db.commit()
-    return {"status": "completed", "cases_reviewed": int(open_count)}
+    return ReviewRunOut(
+        status="completed",
+        cases_reviewed=len(open_cases),
+        provider=provider,
+        model=model,
+        fallback_count=fallback_count,
+    )
 
 
 @app.get("/api/cases", response_model=list[CaseOut])
@@ -152,6 +207,17 @@ def run_cases(run_id: int, _: User = Depends(get_current_user), db: Session = De
         select(ExceptionCase)
         .where(ExceptionCase.payroll_run_id == run_id)
         .order_by(ExceptionCase.created_at.desc())
+    ).all())
+
+
+@app.get("/api/cases/{case_id}/reviews", response_model=list[AIReviewOut])
+def case_reviews(case_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[AIReview]:
+    if not db.get(ExceptionCase, case_id):
+        raise HTTPException(status_code=404, detail="Case not found")
+    return list(db.scalars(
+        select(AIReview)
+        .where(AIReview.case_id == case_id)
+        .order_by(AIReview.created_at.desc())
     ).all())
 
 

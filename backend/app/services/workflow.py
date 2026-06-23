@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models import AuditEvent, ExceptionCase, PayrollRun
+from app.models import AIReview, AuditEvent, ExceptionCase, PayrollRun
 from app.services.graph import build_exception_workflow
 from app.services.validation import validate_rows
 
@@ -40,7 +40,19 @@ def create_payroll_run(db: Session, name: str, period: str, rows: list[dict]) ->
         )
         db.add(case)
         db.flush()
-        db.add(AuditEvent(case_id=case.id, event_type="case_created", detail="Validation finding classified and routed for review."))
+        db.add(AIReview(
+            case_id=case.id,
+            provider=result["analysis_provider"],
+            model=result["analysis_model"],
+            confidence=Decimal(str(analysis.confidence)),
+            policy_citation=analysis.policy_citation,
+            fallback_reason=result.get("fallback_reason"),
+        ))
+        db.add(AuditEvent(
+            case_id=case.id,
+            event_type="case_created",
+            detail=f"Validation finding classified by {result['analysis_provider']} and routed for review.",
+        ))
         finding_count += 1
 
     run.status = "review_required" if finding_count else "ready"

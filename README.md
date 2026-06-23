@@ -33,9 +33,12 @@ Payroll teams reconcile large, country-specific datasets under tight deadlines. 
 - Orchestrate retrieval and classification as a LangGraph workflow.
 - Ground explanations in a country-aware policy library.
 - Enforce Pydantic-validated structured model outputs.
+- Re-run every open case through Gemini from the exception queue without bypassing human approval.
+- Display and persist each review's provider, model, timestamp, confidence, and policy citation.
 - Store embeddings in PostgreSQL with `pgvector`; use a deterministic local vector fallback for zero-cost demos.
 - Approve or dismiss findings through a human review queue.
 - Preserve case creation, status changes, and AI review runs in an audit trail.
+- Fall back safely to deterministic analysis when a free-tier provider is unavailable, with the fallback recorded visibly.
 - Run fully without an API key in deterministic mock mode.
 
 ## Architecture
@@ -61,8 +64,11 @@ flowchart LR
 **Frontend:** Next.js 16, React 19, TypeScript, Recharts, Lucide icons  
 **Backend:** Python 3.12, FastAPI, SQLAlchemy, Pydantic, LangGraph  
 **AI:** Gemini 3.1 Flash-Lite structured outputs, Gemini Embedding, optional OpenAI provider
-**Data:** PostgreSQL, pgvector, SQLite local fallback  
+
+**Data:** PostgreSQL, pgvector, SQLite local fallback
+
 **Security:** Argon2 password hashing, JWT sessions, role-based authorization
+
 **Operations:** Docker Compose, Pytest, Vercel/Render-ready configuration
 
 ## Run locally
@@ -120,6 +126,8 @@ unset GEMINI_API_KEY
 
 PayrollOps uses `gemini-3.1-flash-lite` for structured exception analysis and `gemini-embedding-001` for semantic policy retrieval. The synthetic dataset is appropriate for the free tier, whose prompts may be used to improve Google products.
 
+After signing in as an Admin or Reviewer, open **Exception queue** and select **Run Gemini review**. PayrollOps re-runs open cases through the LangGraph retrieval/classification workflow, stores an immutable review record for each case, and writes the batch plus every case review to the audit trail. If the provider is temporarily unavailable, the request completes with deterministic fallback analysis and clearly labels the affected records.
+
 ## Optional OpenAI provider
 
 Create `backend/.env` without placing the secret in source control:
@@ -135,7 +143,7 @@ The OpenAI provider remains available for teams with API billing. Mock mode rema
 
 ## Import format
 
-Use [sample-data/payroll-demo.csv](sample-data/payroll-demo.csv) as a template. Required columns:
+Download the sample directly from **Payroll runs**, or use [sample-data/payroll-demo.csv](sample-data/payroll-demo.csv) as a template. Required columns:
 
 ```text
 worker_id,worker_name,country,currency,gross_pay,net_pay,tax_id,contractor,contract_end_date
@@ -150,7 +158,7 @@ cd backend && .venv/bin/pytest --cov=app
 cd frontend && npm run build
 ```
 
-The backend suite covers ingestion validation, seeded workflow execution, dashboard responses, policy retrieval, system configuration, and case status transitions.
+The backend suite covers ingestion validation, seeded workflow execution, dashboard responses, policy retrieval, system configuration, case status transitions, Gemini structured responses, and provider fallback behavior.
 
 ## Repository layout
 
@@ -167,6 +175,7 @@ docker-compose.yml
 - Model responses must match a strict Pydantic schema.
 - Retrieved policy text is supplied as bounded grounding context.
 - Confidence is visible to operators rather than treated as certainty.
+- Provider, model, review timestamp, grounding citation, and fallback status remain attached to each AI review.
 - Payment-impacting actions require explicit human approval.
 - Backend authorization prevents Reviewer accounts from performing Admin operations.
 - Audit events record system and operator decisions.

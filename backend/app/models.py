@@ -94,6 +94,21 @@ class ExceptionCase(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     payroll_run: Mapped[PayrollRun] = relationship(back_populates="cases")
     events: Mapped[list["AuditEvent"]] = relationship(back_populates="case", cascade="all, delete-orphan")
+    reviews: Mapped[list["AIReview"]] = relationship(back_populates="case", cascade="all, delete-orphan")
+
+
+class AIReview(Base):
+    __tablename__ = "ai_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("exception_cases.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(120))
+    confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=0)
+    policy_citation: Mapped[str] = mapped_column(Text)
+    fallback_reason: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    case: Mapped[ExceptionCase] = relationship(back_populates="reviews")
 
 
 class PolicyChunk(Base):
