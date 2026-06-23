@@ -1,0 +1,28 @@
+[project]
+name = "payrollops-api"
+version = "0.1.0"
+description = "AI-assisted payroll exception operations API"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "sqlalchemy>=2.0,<3",
+  "pydantic-settings>=2.7,<3",
+  "python-multipart>=0.0.20,<1",
+  "openai>=1.68,<2",
+  "psycopg[binary]>=3.2,<4",
+  "pgvector>=0.3,<1",
+  "langgraph>=0.6,<1",
+  "pypdf>=5.3,<6",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28,<1",
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<7",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,8 @@
+worker_id,worker_name,country,currency,gross_pay,net_pay,tax_id,contractor,contract_end_date
+US-1100,Avery Carter,United States,USD,7800,5660,US-XXX-00,false,
+GB-2200,Oliver Grant,United Kingdom,USD,6200,4580,GB-XXX-00,false,
+CA-3300,Sofia Patel,Canada,CAD,6900,5010,,false,
+US-4400,Jordan Lee,United States,USD,9100,-75,US-XXX-00,false,
+DE-5500,Mila Weber,Germany,EUR,5800,3970,DE-XXX-00,true,
+US-1100,Avery Carter,United States,USD,7800,5660,US-XXX-00,false,
+
