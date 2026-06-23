@@ -11,11 +11,15 @@ class Base(DeclarativeBase):
 
 
 settings = get_settings()
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, connect_args=connect_args, pool_pre_ping=True)
+database_url = settings.database_url
+if database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
 
 
-if settings.database_url.startswith("postgresql"):
+if database_url.startswith("postgresql"):
     @event.listens_for(engine, "connect")
     def enable_pgvector(dbapi_connection, _):
         with dbapi_connection.cursor() as cursor:
