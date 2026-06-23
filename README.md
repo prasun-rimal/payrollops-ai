@@ -7,6 +7,13 @@ AI-assisted payroll exception operations for internal finance and people teams. 
 ![PayrollOps AI exception control center](docs/screenshots/dashboard.png)
 
 <details>
+<summary><strong>Role-based demo login</strong></summary>
+
+![PayrollOps AI secure login](docs/screenshots/login.png)
+
+</details>
+
+<details>
 <summary><strong>Case review with grounded AI analysis</strong></summary>
 
 ![PayrollOps AI case review drawer](docs/screenshots/case-review.png)
@@ -20,6 +27,8 @@ Payroll teams reconcile large, country-specific datasets under tight deadlines. 
 ## Product capabilities
 
 - Import and validate payroll CSV files across multiple countries.
+- Authenticate persisted users with Argon2 password hashing and signed JWT sessions.
+- Enforce Admin and Reviewer permissions across backend endpoints and frontend controls.
 - Detect duplicate workers, currency mismatches, missing tax data, non-positive pay, and incomplete contractor agreements.
 - Orchestrate retrieval and classification as a LangGraph workflow.
 - Ground explanations in a country-aware policy library.
@@ -33,6 +42,8 @@ Payroll teams reconcile large, country-specific datasets under tight deadlines. 
 
 ```mermaid
 flowchart LR
+    User[Admin or Reviewer] --> Auth[JWT authentication]
+    Auth --> UI[Next.js operations center]
     CSV[Payroll CSV] --> API[FastAPI ingestion]
     API --> Rules[Deterministic controls]
     Rules --> Graph[LangGraph workflow]
@@ -40,7 +51,7 @@ flowchart LR
     Retrieve --> Vector[(PostgreSQL + pgvector)]
     Graph --> LLM[Structured AI classification]
     LLM --> Cases[(Exception cases)]
-    Cases --> UI[Next.js review queue]
+    Cases --> UI
     UI --> Human[Human approval]
     Human --> Audit[(Immutable audit events)]
 ```
@@ -51,6 +62,7 @@ flowchart LR
 **Backend:** Python 3.12, FastAPI, SQLAlchemy, Pydantic, LangGraph  
 **AI:** OpenAI Responses API structured outputs and embeddings  
 **Data:** PostgreSQL, pgvector, SQLite local fallback  
+**Security:** Argon2 password hashing, JWT sessions, role-based authorization
 **Operations:** Docker Compose, Pytest, Vercel/Render-ready configuration
 
 ## Run locally
@@ -77,6 +89,15 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+Use either seeded demo account:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@payrollops.demo` | `DemoAdmin!2026` |
+| Reviewer | `reviewer@payrollops.demo` | `DemoReviewer!2026` |
+
+Admin users can import payroll runs and create policy sections. Both roles can inspect and resolve exceptions; the authenticated user is recorded automatically in the audit trail.
 
 ### Docker + PostgreSQL + pgvector
 
@@ -134,6 +155,7 @@ docker-compose.yml
 - Retrieved policy text is supplied as bounded grounding context.
 - Confidence is visible to operators rather than treated as certainty.
 - Payment-impacting actions require explicit human approval.
+- Backend authorization prevents Reviewer accounts from performing Admin operations.
 - Audit events record system and operator decisions.
 
 ## Author

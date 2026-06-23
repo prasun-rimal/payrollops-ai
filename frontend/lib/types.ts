@@ -1,5 +1,8 @@
 export type Severity = "critical" | "high" | "medium" | "low";
 export type Status = "open" | "approved" | "dismissed";
+export type UserRole = "admin" | "reviewer";
+export type User = { id: number; name: string; email: string; role: UserRole };
+export type AuthResponse = { access_token: string; token_type: "bearer"; user: User };
 
 export type CaseItem = {
   id: number; payroll_run_id: number; worker_id: string; worker_name: string; country: string;
@@ -18,4 +21,3 @@ export type AuditEvent = { id: number; case_id: number | null; event_type: strin
 export type PayrollRun = { id: number; name: string; period: string; country_count: number; worker_count: number; gross_total: string; status: string; created_at: string };
 export type Policy = { id: number; document_name: string; section: string; content: string; country: string };
 export type SystemStatus = { api: string; ai_provider: string; model: string; database: string; structured_outputs: boolean; human_approval: boolean };
-

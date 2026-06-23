@@ -39,7 +39,7 @@ function ExceptionQueue() {
   async function resolve(nextStatus: Status) {
     if (!selected) return;
     setBusy(true);
-    try { await sendJson(`/api/cases/${selected.id}`, "PATCH", { status: nextStatus, actor: "Demo operator" }); setSelected(null); await load(); }
+    try { await sendJson(`/api/cases/${selected.id}`, "PATCH", { status: nextStatus }); setSelected(null); await load(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Update failed"); }
     finally { setBusy(false); }
   }
@@ -57,4 +57,3 @@ function ExceptionQueue() {
 }
 
 export default function ExceptionsPage() { return <Suspense fallback={<div className="content">Loading exceptions...</div>}><ExceptionQueue /></Suspense>; }
-

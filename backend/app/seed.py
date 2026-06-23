@@ -1,7 +1,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import PayrollRun, PolicyChunk
+from app.models import PayrollRun, PolicyChunk, User, UserRole
+from app.security import hash_password
 from app.services.embeddings import embed_text
 from app.services.workflow import create_payroll_run
 
@@ -27,6 +28,15 @@ ROWS = [
 
 
 def seed_demo(db: Session) -> None:
+    demo_users = [
+        ("Prasun Rimal", "admin@payrollops.demo", "DemoAdmin!2026", UserRole.admin),
+        ("Jordan Lee", "reviewer@payrollops.demo", "DemoReviewer!2026", UserRole.reviewer),
+    ]
+    for name, email, password, role in demo_users:
+        if not db.scalar(select(User).where(User.email == email)):
+            db.add(User(name=name, email=email, password_hash=hash_password(password), role=role))
+    db.commit()
+
     if db.scalar(select(func.count()).select_from(PayrollRun)):
         return
 

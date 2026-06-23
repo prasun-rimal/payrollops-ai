@@ -4,11 +4,14 @@ import { BadgeCheck, Bot, Database, KeyRound, ShieldCheck, Users } from "lucide-
 import { useEffect, useState } from "react";
 import { getJson } from "@/lib/api";
 import { SystemStatus } from "@/lib/types";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [system, setSystem] = useState<SystemStatus | null>(null);
   useEffect(() => { getJson<SystemStatus>("/api/system").then(setSystem); }, []);
   const rows = [
+    { icon: Users, label: "Signed-in user", value: user ? `${user.name} · ${user.role}` : "Loading", help: user?.email || "Authenticated session identity." },
     { icon: Bot, label: "AI provider", value: system?.ai_provider || "Loading", help: "Switch with AI_PROVIDER in the backend environment." },
     { icon: BadgeCheck, label: "Model", value: system?.model || "Loading", help: "Structured exception classification model." },
     { icon: Database, label: "Database", value: system?.database || "Loading", help: "PostgreSQL uses pgvector; SQLite is the local fallback." },
@@ -20,4 +23,3 @@ export default function SettingsPage() {
     <section className="settings-note"><KeyRound size={20} /><div><strong>Enable real OpenAI analysis locally</strong><p>Create `backend/.env`, set `AI_PROVIDER=openai`, and add `OPENAI_API_KEY`. The public demo should remain in deterministic mode to avoid exposing credentials or generating costs.</p></div></section>
   </section>;
 }
-

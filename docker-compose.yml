@@ -21,6 +21,7 @@ services:
       DATABASE_URL: postgresql+psycopg://payrollops:payrollops@database:5432/payrollops
       AI_PROVIDER: mock
       CORS_ORIGINS: http://localhost:3000
+      JWT_SECRET: payrollops-docker-demo-secret-change-before-deployment
     ports:
       - "8000:8000"
     depends_on:
@@ -41,4 +42,3 @@ services:
 
 volumes:
   payrollops-data:
-

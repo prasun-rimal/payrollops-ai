@@ -44,6 +44,38 @@ nav { margin-top: 24px; display: grid; gap: 4px; }
 .operator strong, .operator span { display: block; }
 .operator strong { color: #edf4f1; font-size: 11px; }
 .operator span { margin-top: 2px; color: #829b94; font-size: 9px; }
+.operator-logout { width: 30px; height: 30px; border: 0; border-radius: 4px; color: #91a8a1; background: transparent; display: grid; place-items: center; }
+.operator-logout:hover { color: white; background: #21463f; }
+
+.auth-loading { min-height: 100vh; color: #547068; background: var(--paper); display: flex; align-items: center; justify-content: center; gap: 11px; font-size: 12px; font-weight: 700; }
+.login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(420px, .95fr) minmax(520px, 1.05fr); background: white; }
+.login-story { min-height: 100vh; padding: clamp(34px, 6vw, 82px); color: #e9f2ef; background: #102c27; display: flex; flex-direction: column; justify-content: space-between; }
+.login-brand { display: flex; align-items: center; gap: 11px; }
+.login-brand > span { width: 38px; height: 38px; border-radius: 6px; color: #123a32; background: #76d1b3; display: grid; place-items: center; }
+.login-brand strong { color: white; font: 750 18px var(--font-display), sans-serif; }
+.login-story .eyebrow { color: #7ed1b5; }
+.login-story h1 { max-width: 660px; margin: 12px 0 20px; color: white; font: 750 clamp(34px, 4vw, 60px)/1.08 var(--font-display), sans-serif; }
+.login-story > div:nth-child(2) > p:last-child { max-width: 590px; margin: 0; color: #a9beb7; font-size: 14px; line-height: 1.65; }
+.login-controls { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.login-controls span { display: inline-flex; align-items: center; gap: 7px; color: #bdd0ca; font-size: 10px; font-weight: 700; }
+.login-controls svg { color: #76d1b3; }
+.login-panel { min-height: 100vh; padding: 40px; display: grid; place-items: center; }
+.login-form-wrap { width: min(470px, 100%); }
+.login-form-wrap h2 { margin: 7px 0 8px; font: 750 28px var(--font-display), sans-serif; }
+.login-intro { margin-bottom: 22px; color: #737a75; font-size: 12px; }
+.demo-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.demo-role-grid button { min-height: 76px; padding: 12px; border: 1px solid #dce1dd; border-radius: 6px; color: var(--ink); background: #fafbfa; text-align: left; }
+.demo-role-grid button:hover, .demo-role-grid button.selected { border-color: #6e9f8f; background: #eef6f3; box-shadow: inset 3px 0 #397461; }
+.demo-role-grid span, .demo-role-grid small { display: block; }
+.demo-role-grid span { font-size: 11px; font-weight: 800; }
+.demo-role-grid small { margin-top: 5px; color: #7e8580; font-size: 9px; line-height: 1.4; }
+.login-form { margin-top: 22px; display: grid; gap: 14px; }
+.login-form label { display: grid; gap: 7px; color: #59615c; font-size: 10px; font-weight: 750; }
+.login-form input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid #d6dbd7; border-radius: 5px; outline: 0; color: var(--ink); background: white; font-size: 12px; }
+.login-form input:focus { border-color: #679686; box-shadow: 0 0 0 3px #e3f0eb; }
+.login-submit { width: 100%; min-height: 44px; margin-top: 3px; }
+.login-error { padding: 10px 11px; border: 1px solid #e7bdb7; border-radius: 5px; color: #923b30; background: #fff1ef; font-size: 10px; }
+.demo-note { margin: 17px 0 0; color: #929893; font-size: 9px; text-align: center; }
 
 main { min-width: 0; }
 .topbar { height: 82px; padding: 0 30px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.88); display: flex; align-items: center; justify-content: space-between; }
@@ -284,6 +316,11 @@ td > span { margin-top: 4px; color: #8b918d; font-size: 8px; text-transform: low
   .runs-layout, .settings-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
+  .login-page { grid-template-columns: 1fr; }
+  .login-story { min-height: auto; padding: 28px 22px; gap: 38px; }
+  .login-story h1 { font-size: 34px; }
+  .login-controls { display: none; }
+  .login-panel { min-height: auto; padding: 34px 22px; }
   .app-shell { display: block; }
   .sidebar { position: static; width: 100%; height: auto; padding: 12px; }
   .brand { height: 40px; }
@@ -314,6 +351,7 @@ td > span { margin-top: 4px; color: #8b918d; font-size: 8px; text-transform: low
   .form-grid label:last-child { grid-column: auto; }
 }
 @media (max-width: 500px) {
+  .demo-role-grid { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: 1fr; }
   .topbar h1 { font-size: 18px; }
   .topbar { flex-direction: column; }

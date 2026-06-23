@@ -27,6 +27,23 @@ class Severity(str, Enum):
     low = "low"
 
 
+class UserRole(str, Enum):
+    admin = "admin"
+    reviewer = "reviewer"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(180), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[UserRole] = mapped_column(SqlEnum(UserRole), default=UserRole.reviewer)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class PortableVector(TypeDecorator):
     impl = JSON
     cache_ok = True

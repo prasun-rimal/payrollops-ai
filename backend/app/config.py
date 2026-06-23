@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     ai_provider: str = "mock"
     cors_origins: str = "http://localhost:3000"
+    jwt_secret: str = "payrollops-local-demo-secret-change-in-production"
+    access_token_minutes: int = 1440
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

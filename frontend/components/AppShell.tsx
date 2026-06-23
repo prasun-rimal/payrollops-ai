@@ -1,9 +1,10 @@
 "use client";
 
-import { Activity, Bell, ChevronDown, CircleAlert, FileCheck2, LayoutDashboard, ListChecks, Settings, Sparkles } from "lucide-react";
+import { Activity, Bell, CircleAlert, FileCheck2, LayoutDashboard, ListChecks, LogOut, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ReactNode, useEffect } from "react";
+import { useAuth } from "@/components/AuthProvider";
 
 const navigation = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -25,7 +26,14 @@ const headings: Record<string, [string, string]> = {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
+  const isLogin = pathname === "/login";
+  useEffect(() => { if (!loading && !user && !isLogin) router.replace("/login"); }, [isLogin, loading, router, user]);
+  if (isLogin) return children;
+  if (loading || !user) return <div className="auth-loading"><span className="pulse" />Verifying secure session</div>;
   const [title, subtitle] = headings[pathname] || headings["/"];
+  const initials = user.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   return <div className="app-shell">
     <aside className="sidebar">
       <Link className="brand" href="/"><div className="brand-mark"><Sparkles size={18} /></div><div><strong>PayrollOps</strong><span>AI control center</span></div></Link>
@@ -34,7 +42,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </nav>
       <div className="sidebar-bottom">
         <div className="ai-status"><span className="pulse" /><div><strong>AI workflow online</strong><span>Structured output validation</span></div></div>
-        <div className="operator"><div className="avatar">PR</div><div><strong>Prasun Rimal</strong><span>Operations admin</span></div><ChevronDown size={16} /></div>
+        <div className="operator"><div className="avatar">{initials}</div><div><strong>{user.name}</strong><span>{user.role === "admin" ? "Operations admin" : "Payroll reviewer"}</span></div><button className="operator-logout" title="Sign out" onClick={logout}><LogOut size={16} /></button></div>
       </div>
     </aside>
     <main>

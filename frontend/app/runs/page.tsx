@@ -2,13 +2,15 @@
 
 import { FileSpreadsheet, RefreshCw, Upload } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { API, getJson } from "@/lib/api";
+import { API, authHeaders, getJson } from "@/lib/api";
 import { CaseItem, PayrollRun } from "@/lib/types";
 import { SeverityBadge, StatusBadge } from "@/components/Badges";
+import { useAuth } from "@/components/AuthProvider";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export default function RunsPage() {
+  const { user } = useAuth();
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [selected, setSelected] = useState<PayrollRun | null>(null);
   const [cases, setCases] = useState<CaseItem[]>([]);
@@ -24,13 +26,13 @@ export default function RunsPage() {
     const file = event.target.files?.[0]; if (!file) return;
     setBusy(true); setMessage("");
     const form = new FormData(); form.append("file", file); form.append("name", file.name.replace(/\.csv$/i, "")); form.append("period", "Imported demo period");
-    try { const response = await fetch(`${API}/api/runs/upload`, { method: "POST", body: form }); const payload = await response.json(); if (!response.ok) throw new Error(payload.detail); setMessage(`Imported ${payload.worker_count} rows successfully.`); await loadRuns(); await inspect(payload); }
+    try { const response = await fetch(`${API}/api/runs/upload`, { method: "POST", headers: authHeaders(), body: form }); const payload = await response.json(); if (!response.ok) throw new Error(payload.detail); setMessage(`Imported ${payload.worker_count} rows successfully.`); await loadRuns(); await inspect(payload); }
     catch (requestError) { setMessage(requestError instanceof Error ? requestError.message : "Import failed"); }
     finally { setBusy(false); event.target.value = ""; }
   }
 
   return <section className="content page-content">
-    <div className="page-actions"><div><strong>Payroll ingestion</strong><span>Upload a synthetic CSV to run deterministic controls and AI classification.</span></div><input ref={input} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={upload} /><button className="primary" disabled={busy} onClick={() => input.current?.click()}><Upload size={17} />Import payroll CSV</button></div>
+    <div className="page-actions"><div><strong>Payroll ingestion</strong><span>{user?.role === "admin" ? "Upload a synthetic CSV to run deterministic controls and AI classification." : "Run imports are restricted to operations administrators."}</span></div><input ref={input} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={upload} />{user?.role === "admin" && <button className="primary" disabled={busy} onClick={() => input.current?.click()}><Upload size={17} />Import payroll CSV</button>}</div>
     {message && <div className="info-banner">{message}</div>}
     <div className="runs-layout">
       <section className="panel runs-list"><div className="panel-heading"><div><h2>Run history</h2><p>{runs.length} processed batches</p></div><button className="icon-button" title="Refresh runs" onClick={() => void loadRuns()}><RefreshCw size={17} /></button></div>{runs.map((run) => <button className={`run-row ${selected?.id === run.id ? "selected" : ""}`} onClick={() => void inspect(run)} key={run.id}><span className="run-file"><FileSpreadsheet size={18} /></span><span><strong>{run.name}</strong><small>{run.period} · {run.worker_count} workers</small></span><b>{currency.format(Number(run.gross_total))}</b></button>)}</section>

@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine, get_db
-from app.models import AuditEvent, CaseStatus, ExceptionCase, PayrollRun, PolicyChunk, Severity
-from app.schemas import AuditEventOut, CaseOut, CaseUpdate, DashboardSummary, PayrollRunOut, PolicyCreate, PolicyOut
+from app.models import AuditEvent, CaseStatus, ExceptionCase, PayrollRun, PolicyChunk, Severity, User, UserRole
+from app.schemas import AuthResponse, AuditEventOut, CaseOut, CaseUpdate, DashboardSummary, LoginRequest, PayrollRunOut, PolicyCreate, PolicyOut, UserOut
+from app.security import authenticate_user, create_access_token, get_current_user, require_roles
 from app.seed import seed_demo
 from app.services.embeddings import embed_text
 from app.services.workflow import create_payroll_run
@@ -41,8 +42,21 @@ def health() -> dict[str, str]:
     return {"status": "ok", "ai_provider": settings.ai_provider}
 
 
+@app.post("/api/auth/login", response_model=AuthResponse)
+def login(credentials: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    user = authenticate_user(db, credentials.email, credentials.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Email or password is incorrect")
+    return AuthResponse(access_token=create_access_token(user), user=UserOut.model_validate(user))
+
+
+@app.get("/api/auth/me", response_model=UserOut)
+def current_user(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
 @app.get("/api/system")
-def system_status() -> dict[str, str | bool]:
+def system_status(_: User = Depends(get_current_user)) -> dict[str, str | bool]:
     return {
         "api": "online",
         "ai_provider": settings.ai_provider,
@@ -54,7 +68,7 @@ def system_status() -> dict[str, str | bool]:
 
 
 @app.get("/api/dashboard", response_model=DashboardSummary)
-def dashboard(db: Session = Depends(get_db)) -> DashboardSummary:
+def dashboard(_: User = Depends(get_current_user), db: Session = Depends(get_db)) -> DashboardSummary:
     cases = db.scalars(select(ExceptionCase)).all()
     payroll_total = db.scalar(select(func.coalesce(func.sum(PayrollRun.gross_total), 0))) or Decimal(0)
     workers = db.scalar(select(func.coalesce(func.sum(PayrollRun.worker_count), 0))) or 0
@@ -77,7 +91,7 @@ def dashboard(db: Session = Depends(get_db)) -> DashboardSummary:
 
 
 @app.get("/api/runs", response_model=list[PayrollRunOut])
-def runs(db: Session = Depends(get_db)) -> list[PayrollRun]:
+def runs(_: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[PayrollRun]:
     return list(db.scalars(select(PayrollRun).order_by(PayrollRun.created_at.desc())).all())
 
 
@@ -86,6 +100,7 @@ async def upload_run(
     file: UploadFile = File(...),
     name: str = Form("Imported Payroll Run"),
     period: str = Form("Current period"),
+    current_user: User = Depends(require_roles(UserRole.admin)),
     db: Session = Depends(get_db),
 ) -> PayrollRun:
     if not file.filename or not file.filename.lower().endswith(".csv"):
@@ -109,15 +124,18 @@ async def upload_run(
 
 
 @app.post("/api/review")
-def run_review(db: Session = Depends(get_db)) -> dict[str, int | str]:
+def run_review(
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.reviewer)),
+    db: Session = Depends(get_db),
+) -> dict[str, int | str]:
     open_count = db.scalar(select(func.count()).select_from(ExceptionCase).where(ExceptionCase.status == CaseStatus.open)) or 0
-    db.add(AuditEvent(event_type="ai_review_completed", actor="AI workflow", detail=f"Revalidated {open_count} open cases using structured exception schemas."))
+    db.add(AuditEvent(event_type="ai_review_completed", actor=current_user.name, detail=f"Revalidated {open_count} open cases using structured exception schemas."))
     db.commit()
     return {"status": "completed", "cases_reviewed": int(open_count)}
 
 
 @app.get("/api/cases", response_model=list[CaseOut])
-def cases(status: CaseStatus | None = None, severity: Severity | None = None, db: Session = Depends(get_db)) -> list[ExceptionCase]:
+def cases(status: CaseStatus | None = None, severity: Severity | None = None, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ExceptionCase]:
     query = select(ExceptionCase)
     if status:
         query = query.where(ExceptionCase.status == status)
@@ -127,7 +145,7 @@ def cases(status: CaseStatus | None = None, severity: Severity | None = None, db
 
 
 @app.get("/api/runs/{run_id}/cases", response_model=list[CaseOut])
-def run_cases(run_id: int, db: Session = Depends(get_db)) -> list[ExceptionCase]:
+def run_cases(run_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ExceptionCase]:
     if not db.get(PayrollRun, run_id):
         raise HTTPException(status_code=404, detail="Payroll run not found")
     return list(db.scalars(
@@ -138,7 +156,12 @@ def run_cases(run_id: int, db: Session = Depends(get_db)) -> list[ExceptionCase]
 
 
 @app.patch("/api/cases/{case_id}", response_model=CaseOut)
-def update_case(case_id: int, update: CaseUpdate, db: Session = Depends(get_db)) -> ExceptionCase:
+def update_case(
+    case_id: int,
+    update: CaseUpdate,
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.reviewer)),
+    db: Session = Depends(get_db),
+) -> ExceptionCase:
     case = db.get(ExceptionCase, case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -147,7 +170,7 @@ def update_case(case_id: int, update: CaseUpdate, db: Session = Depends(get_db))
     db.add(AuditEvent(
         case_id=case.id,
         event_type="case_status_changed",
-        actor=update.actor,
+        actor=current_user.name,
         detail=f"Changed status from {previous.value} to {update.status.value}.",
     ))
     db.commit()
@@ -156,12 +179,12 @@ def update_case(case_id: int, update: CaseUpdate, db: Session = Depends(get_db))
 
 
 @app.get("/api/audit", response_model=list[AuditEventOut])
-def audit(db: Session = Depends(get_db)) -> list[AuditEvent]:
+def audit(_: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[AuditEvent]:
     return list(db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(50)).all())
 
 
 @app.get("/api/policies", response_model=list[PolicyOut])
-def policies(country: str | None = None, db: Session = Depends(get_db)) -> list[PolicyChunk]:
+def policies(country: str | None = None, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[PolicyChunk]:
     query = select(PolicyChunk)
     if country:
         query = query.where(PolicyChunk.country == country)
@@ -169,7 +192,11 @@ def policies(country: str | None = None, db: Session = Depends(get_db)) -> list[
 
 
 @app.post("/api/policies", response_model=PolicyOut, status_code=201)
-def create_policy(policy: PolicyCreate, db: Session = Depends(get_db)) -> PolicyChunk:
+def create_policy(
+    policy: PolicyCreate,
+    current_user: User = Depends(require_roles(UserRole.admin)),
+    db: Session = Depends(get_db),
+) -> PolicyChunk:
     chunk = PolicyChunk(
         document_name=policy.document_name,
         section=policy.section,
@@ -181,7 +208,7 @@ def create_policy(policy: PolicyCreate, db: Session = Depends(get_db)) -> Policy
     db.flush()
     db.add(AuditEvent(
         event_type="policy_added",
-        actor="Demo operator",
+        actor=current_user.name,
         detail=f"Added {policy.document_name} - {policy.section} to the retrieval library.",
     ))
     db.commit()
