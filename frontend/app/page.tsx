@@ -54,7 +54,7 @@ export default function OverviewPage() {
 
       <section className="panel activity-panel">
         <div className="panel-heading"><div><h2>Recent activity</h2><p>Latest system and operator events</p></div><Link className="text-link" href="/audit">Full audit <ArrowRight size={14} /></Link></div>
-        <div className="compact-timeline">{audit.slice(0, 5).map((event) => <div key={event.id}><span><Activity size={14} /></span><p><strong>{event.event_type.replaceAll("_", " ")}</strong>{event.detail}<small>{new Date(event.created_at).toLocaleString()} · {event.actor}</small></p></div>)}</div>
+        <div className="compact-timeline">{audit.slice(0, 5).map((event) => <div className="timeline-item" key={event.id}><span><Activity size={14} /></span><p><strong>{event.event_type.replaceAll("_", " ")}</strong><span>{event.detail}</span><small>{new Date(event.created_at).toLocaleString()} · {event.actor}</small></p></div>)}</div>
       </section>
     </div>
   </section>;
