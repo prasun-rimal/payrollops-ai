@@ -23,7 +23,7 @@ class ExceptionAnalyzer:
                 client = genai.Client(api_key=self.settings.gemini_api_key)
                 response = client.models.generate_content(
                     model=self.settings.gemini_model,
-                    contents=json.dumps({"finding": finding, "policy_context": policy_context}),
+                    contents=json.dumps({"finding": finding, "policy_context": policy_context}, default=str),
                     config=types.GenerateContentConfig(
                         system_instruction=(
                             "You are a payroll operations risk analyst. Use only the supplied policy context. "
@@ -66,7 +66,7 @@ class ExceptionAnalyzer:
                     },
                     {
                         "role": "user",
-                        "content": json.dumps({"finding": finding, "policy_context": policy_context}),
+                        "content": json.dumps({"finding": finding, "policy_context": policy_context}, default=str),
                     },
                 ],
                 text_format=ExceptionAnalysis,

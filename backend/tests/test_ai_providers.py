@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from types import SimpleNamespace
 
 from google.genai.errors import APIError as GeminiAPIError
@@ -10,6 +11,7 @@ FINDING = {
     "severity": "high",
     "explanation": "The worker currency does not match the configured country.",
     "recommendation": "Hold the payment and verify the worker record.",
+    "amount": Decimal("6400.00"),
 }
 
 
