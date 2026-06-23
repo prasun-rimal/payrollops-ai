@@ -1,5 +1,7 @@
 import json
 
+from google import genai
+from google.genai import types
 from openai import OpenAI
 
 from app.config import get_settings
@@ -12,6 +14,25 @@ class ExceptionAnalyzer:
         self.settings = get_settings()
 
     def analyze(self, finding: dict, policy_context: str) -> ExceptionAnalysis:
+        if self.settings.ai_provider == "gemini" and self.settings.gemini_api_key:
+            client = genai.Client(api_key=self.settings.gemini_api_key)
+            response = client.models.generate_content(
+                model=self.settings.gemini_model,
+                contents=json.dumps({"finding": finding, "policy_context": policy_context}),
+                config=types.GenerateContentConfig(
+                    system_instruction=(
+                        "You are a payroll operations risk analyst. Use only the supplied policy context. "
+                        "Return a concise, operational analysis. Never invent legal requirements."
+                    ),
+                    response_mime_type="application/json",
+                    response_schema=ExceptionAnalysis,
+                    thinking_config=types.ThinkingConfig(thinking_level="low"),
+                ),
+            )
+            if not response.text:
+                raise RuntimeError("Gemini returned no structured analysis")
+            return ExceptionAnalysis.model_validate_json(response.text)
+
         if self.settings.ai_provider != "openai" or not self.settings.openai_api_key:
             return self._mock_analysis(finding, policy_context)
 
@@ -48,4 +69,3 @@ class ExceptionAnalyzer:
             policy_citation=citation,
             confidence=0.97 if severity in {Severity.critical, Severity.high} else 0.91,
         )
-

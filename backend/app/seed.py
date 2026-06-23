@@ -5,6 +5,7 @@ from app.models import PayrollRun, PolicyChunk, User, UserRole
 from app.security import hash_password
 from app.services.embeddings import embed_text
 from app.services.workflow import create_payroll_run
+from app.config import get_settings
 
 
 POLICIES = [
@@ -38,6 +39,10 @@ def seed_demo(db: Session) -> None:
     db.commit()
 
     if db.scalar(select(func.count()).select_from(PayrollRun)):
+        if get_settings().ai_provider in {"gemini", "openai"}:
+            for policy in db.scalars(select(PolicyChunk)).all():
+                policy.embedding = embed_text(policy.content)
+            db.commit()
         return
 
     for document, section, country, content in POLICIES:

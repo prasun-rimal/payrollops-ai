@@ -60,7 +60,7 @@ flowchart LR
 
 **Frontend:** Next.js 16, React 19, TypeScript, Recharts, Lucide icons  
 **Backend:** Python 3.12, FastAPI, SQLAlchemy, Pydantic, LangGraph  
-**AI:** OpenAI Responses API structured outputs and embeddings  
+**AI:** Gemini 3.1 Flash-Lite structured outputs, Gemini Embedding, optional OpenAI provider
 **Data:** PostgreSQL, pgvector, SQLite local fallback  
 **Security:** Argon2 password hashing, JWT sessions, role-based authorization
 **Operations:** Docker Compose, Pytest, Vercel/Render-ready configuration
@@ -107,7 +107,20 @@ docker compose up --build
 
 The frontend runs on `http://localhost:3000`, the API on `http://localhost:8000`, and interactive API documentation on `http://localhost:8000/docs`.
 
-## Enable real OpenAI analysis
+## Enable real Gemini analysis for free
+
+Create `backend/.env` without placing the secret in source control:
+
+```bash
+cd backend
+read -s "GEMINI_API_KEY?Gemini API key: "; echo
+printf "GEMINI_API_KEY=%s\nAI_PROVIDER=gemini\n" "$GEMINI_API_KEY" > .env
+unset GEMINI_API_KEY
+```
+
+PayrollOps uses `gemini-3.1-flash-lite` for structured exception analysis and `gemini-embedding-001` for semantic policy retrieval. The synthetic dataset is appropriate for the free tier, whose prompts may be used to improve Google products.
+
+## Optional OpenAI provider
 
 Create `backend/.env` without placing the secret in source control:
 
@@ -118,7 +131,7 @@ printf "OPENAI_API_KEY=%s\nAI_PROVIDER=openai\n" "$OPENAI_API_KEY" > .env
 unset OPENAI_API_KEY
 ```
 
-The application uses structured outputs for exception analysis and `text-embedding-3-small` for policy retrieval. Mock mode remains the recommended setting for public demos because it is deterministic and incurs no API cost.
+The OpenAI provider remains available for teams with API billing. Mock mode remains available for deterministic tests and offline development.
 
 ## Import format
 

@@ -2,6 +2,8 @@ import hashlib
 import math
 import re
 
+from google import genai
+from google.genai import types
 from openai import OpenAI
 
 from app.config import get_settings
@@ -12,6 +14,17 @@ DIMENSIONS = 1536
 
 def embed_text(text: str) -> list[float]:
     settings = get_settings()
+    if settings.ai_provider == "gemini" and settings.gemini_api_key:
+        client = genai.Client(api_key=settings.gemini_api_key)
+        response = client.models.embed_content(
+            model=settings.gemini_embedding_model,
+            contents=text,
+            config=types.EmbedContentConfig(output_dimensionality=DIMENSIONS),
+        )
+        if not response.embeddings or not response.embeddings[0].values:
+            raise RuntimeError("Gemini returned no embedding")
+        return list(response.embeddings[0].values)
+
     if settings.ai_provider == "openai" and settings.openai_api_key:
         response = OpenAI(api_key=settings.openai_api_key).embeddings.create(
             model=settings.openai_embedding_model,
@@ -26,4 +39,3 @@ def embed_text(text: str) -> list[float]:
         vector[index] += 1.0 if digest[4] % 2 == 0 else -1.0
     norm = math.sqrt(sum(value * value for value in vector)) or 1.0
     return [value / norm for value in vector]
-

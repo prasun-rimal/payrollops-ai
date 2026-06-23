@@ -60,7 +60,7 @@ def system_status(_: User = Depends(get_current_user)) -> dict[str, str | bool]:
     return {
         "api": "online",
         "ai_provider": settings.ai_provider,
-        "model": settings.openai_model if settings.ai_provider == "openai" else "deterministic-demo",
+        "model": settings.gemini_model if settings.ai_provider == "gemini" else settings.openai_model if settings.ai_provider == "openai" else "deterministic-demo",
         "database": "postgresql" if settings.database_url.startswith("postgresql") else "sqlite",
         "structured_outputs": True,
         "human_approval": True,
