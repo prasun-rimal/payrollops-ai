@@ -25,6 +25,14 @@ def test_dashboard_and_case_workflow():
         assert review.status_code == 200
         assert review.json()["status"] == "completed"
 
+        policies = client.get("/api/policies")
+        assert policies.status_code == 200
+        assert len(policies.json()) >= 5
+
+        system = client.get("/api/system")
+        assert system.status_code == 200
+        assert system.json()["structured_outputs"] is True
+
 
 def test_upload_rejects_wrong_columns():
     with TestClient(app) as client:

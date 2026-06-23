@@ -116,7 +116,7 @@ cd backend && .venv/bin/pytest --cov=app
 cd frontend && npm run build
 ```
 
-Current backend coverage is above 90%, including ingestion validation, seeded workflow execution, dashboard responses, and case status transitions.
+The backend suite covers ingestion validation, seeded workflow execution, dashboard responses, policy retrieval, system configuration, and case status transitions.
 
 ## Repository layout
 

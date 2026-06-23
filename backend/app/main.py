@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine, get_db
-from app.models import AuditEvent, CaseStatus, ExceptionCase, PayrollRun, Severity
-from app.schemas import AuditEventOut, CaseOut, CaseUpdate, DashboardSummary, PayrollRunOut
+from app.models import AuditEvent, CaseStatus, ExceptionCase, PayrollRun, PolicyChunk, Severity
+from app.schemas import AuditEventOut, CaseOut, CaseUpdate, DashboardSummary, PayrollRunOut, PolicyCreate, PolicyOut
 from app.seed import seed_demo
+from app.services.embeddings import embed_text
 from app.services.workflow import create_payroll_run
 
 
@@ -38,6 +39,18 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "ai_provider": settings.ai_provider}
+
+
+@app.get("/api/system")
+def system_status() -> dict[str, str | bool]:
+    return {
+        "api": "online",
+        "ai_provider": settings.ai_provider,
+        "model": settings.openai_model if settings.ai_provider == "openai" else "deterministic-demo",
+        "database": "postgresql" if settings.database_url.startswith("postgresql") else "sqlite",
+        "structured_outputs": True,
+        "human_approval": True,
+    }
 
 
 @app.get("/api/dashboard", response_model=DashboardSummary)
@@ -113,6 +126,17 @@ def cases(status: CaseStatus | None = None, severity: Severity | None = None, db
     return list(db.scalars(query.order_by(ExceptionCase.created_at.desc())).all())
 
 
+@app.get("/api/runs/{run_id}/cases", response_model=list[CaseOut])
+def run_cases(run_id: int, db: Session = Depends(get_db)) -> list[ExceptionCase]:
+    if not db.get(PayrollRun, run_id):
+        raise HTTPException(status_code=404, detail="Payroll run not found")
+    return list(db.scalars(
+        select(ExceptionCase)
+        .where(ExceptionCase.payroll_run_id == run_id)
+        .order_by(ExceptionCase.created_at.desc())
+    ).all())
+
+
 @app.patch("/api/cases/{case_id}", response_model=CaseOut)
 def update_case(case_id: int, update: CaseUpdate, db: Session = Depends(get_db)) -> ExceptionCase:
     case = db.get(ExceptionCase, case_id)
@@ -134,3 +158,32 @@ def update_case(case_id: int, update: CaseUpdate, db: Session = Depends(get_db))
 @app.get("/api/audit", response_model=list[AuditEventOut])
 def audit(db: Session = Depends(get_db)) -> list[AuditEvent]:
     return list(db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(50)).all())
+
+
+@app.get("/api/policies", response_model=list[PolicyOut])
+def policies(country: str | None = None, db: Session = Depends(get_db)) -> list[PolicyChunk]:
+    query = select(PolicyChunk)
+    if country:
+        query = query.where(PolicyChunk.country == country)
+    return list(db.scalars(query.order_by(PolicyChunk.document_name, PolicyChunk.section)).all())
+
+
+@app.post("/api/policies", response_model=PolicyOut, status_code=201)
+def create_policy(policy: PolicyCreate, db: Session = Depends(get_db)) -> PolicyChunk:
+    chunk = PolicyChunk(
+        document_name=policy.document_name,
+        section=policy.section,
+        content=policy.content,
+        country=policy.country,
+        embedding=embed_text(policy.content),
+    )
+    db.add(chunk)
+    db.flush()
+    db.add(AuditEvent(
+        event_type="policy_added",
+        actor="Demo operator",
+        detail=f"Added {policy.document_name} - {policy.section} to the retrieval library.",
+    ))
+    db.commit()
+    db.refresh(chunk)
+    return chunk

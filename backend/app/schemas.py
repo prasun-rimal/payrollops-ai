@@ -65,6 +65,23 @@ class AuditEventOut(BaseModel):
     created_at: datetime
 
 
+class PolicyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    document_name: str
+    section: str
+    content: str
+    country: str
+
+
+class PolicyCreate(BaseModel):
+    document_name: str = Field(min_length=3, max_length=160)
+    section: str = Field(min_length=3, max_length=160)
+    content: str = Field(min_length=20, max_length=5000)
+    country: str = Field(default="Global", min_length=2, max_length=80)
+
+
 class DashboardSummary(BaseModel):
     open_cases: int
     critical_cases: int
@@ -74,4 +91,3 @@ class DashboardSummary(BaseModel):
     workers_processed: int
     cases_by_severity: dict[str, int]
     cases_by_country: dict[str, int]
-
