@@ -18,6 +18,11 @@ export function authHeaders(extra: HeadersInit = {}): HeadersInit {
   return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
 }
 
+export async function wakeBackend(): Promise<void> {
+  const response = await fetch(`${API}/health`, { cache: "no-store" });
+  if (!response.ok) throw new Error("The server is still starting. Please try again in a few seconds.");
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     clearAccessToken();
