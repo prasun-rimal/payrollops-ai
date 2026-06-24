@@ -182,4 +182,6 @@ docker-compose.yml
 
 ## Author
 
-Built by [Prasun Rimal](https://prasun-rimal.github.io) · [GitHub](https://github.com/prasun-rimal) · [LinkedIn](https://linkedin.com/in/prasunrimal)
+**Prasun Rimal**
+B.S. Mathematics and B.S. Computer Science
+St. Joseph's University, New York
